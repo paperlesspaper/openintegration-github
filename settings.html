@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Settings</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: #fff;
+        color: #000;
+      }
+
+      body {
+        padding: 12px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 14px;
+      }
+
+      input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #c7c7c7;
+        border-radius: 8px;
+        font: inherit;
+        background: transparent;
+        color: inherit;
+      }
+
+      input:focus {
+        outline: 2px solid #111;
+        outline-offset: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <label for="github-username">GitHub username</label>
+    <input
+      type="text"
+      id="github-username"
+      autocomplete="off"
+      spellcheck="false"
+    />
+
+    <script>
+      const usernameInput = document.getElementById("github-username");
+
+      let hostOrigin = "*";
+      let hostWindow = window.parent;
+      let state = {
+        githubUsername: "",
+      };
+
+      function postToHost(message) {
+        if (!hostWindow || typeof hostWindow.postMessage !== "function") {
+          return;
+        }
+        const targetOrigin = hostWindow === window ? "*" : hostOrigin;
+        hostWindow.postMessage(message, targetOrigin);
+      }
+
+      function sendHeight() {
+        const height = Math.max(
+          48,
+          Math.min(400, Math.ceil(document.documentElement.scrollHeight)),
+        );
+        postToHost({
+          source: "paperlesspaper-plugin",
+          type: "SET_HEIGHT",
+          payload: { height },
+        });
+      }
+
+      function sendSettings() {
+        postToHost({
+          source: "paperlesspaper-plugin",
+          type: "UPDATE_SETTINGS",
+          payload: {
+            githubUsername: state.githubUsername,
+          },
+        });
+      }
+
+      function applySettings(settings) {
+        state.githubUsername =
+          typeof settings?.githubUsername === "string"
+            ? settings.githubUsername
+            : "";
+        usernameInput.value = state.githubUsername;
+        sendHeight();
+      }
+
+      usernameInput.addEventListener("input", () => {
+        state.githubUsername = usernameInput.value.trim();
+        sendSettings();
+        sendHeight();
+      });
+
+      window.addEventListener("message", (event) => {
+        console.log("Received message in settings page:", event.data);
+        const message = event.data;
+        if (!message || message.source !== "paperlesspaper-app") {
+          return;
+        }
+
+        hostOrigin = event.origin || "*";
+        hostWindow = event.source || window.parent;
+
+        if (message.type === "INIT") {
+          applySettings(message.payload?.settings || {});
+          return;
+        }
+
+        if (message.type === "REDIRECT") {
+          sendHeight();
+        }
+      });
+
+      window.addEventListener("load", sendHeight);
+      window.addEventListener("resize", sendHeight);
+    </script>
+  </body>
+</html>
